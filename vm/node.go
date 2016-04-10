@@ -1,53 +1,32 @@
 package vm
 
 import (
-	"github.com/urubas/urubas/graph"
+	"github.com/urubas/urubas/ast"
+	"github.com/urubas/urubas/compiler"
 )
 
-type InputState int
-const (
-	_ InputState = iota
-	Waiting  = iota
-	Open     = iota
-	Accepted = iota
-	Rejected = iota
-)
+type OutputMap map[string]Output
 
-type InputKind int
-const (
-	_ InputKind = iota
-	ValueInput = iota
-	StateInput = iota
-)
-
-type Input interface {
-	Kind() InputKind
-	State() InputState
-
-	Input() <-chan interface{}
-	StateChannel() <-chan InputState
+type Edge struct {
+	Target *Node
+	Slot int
 }
 
-type Output interface {
-	Output() chan<- interface{}
-	Send(value interface{})
-	Close(accepted bool)
+type Output struct {
+	Name string
+	Type *compiler.Type
+	Edges []Edge
 }
 
-type Node interface {
-	Node() *graph.Node
-	Context() Context
+type Input struct {
+	Type *compiler.Type
+}
 
-	Input(index int) Input
-	Inputs() []Input
-	InputSlot(index int) Output
-	ValueInputCount() int
-	StateInputCount() int
-	InputCount() int
+type Node struct {
+	ID int
 
-	Output(name string) Output
-	Outputs() []Output
-	OutputCount() int
+	Function compiler.Function
 
-	Execute()
+	Inputs []Input
+	Outputs OutputMap
 }
