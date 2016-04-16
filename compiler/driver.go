@@ -9,6 +9,7 @@ import (
 type Driver struct {
 	target *ast.Program
 	program *Program
+	builder llvm.Builder
 }
 
 func NewDriver(program *ast.Program) *Driver {
@@ -22,6 +23,7 @@ func NewDriver(program *ast.Program) *Driver {
 	return &Driver{
 		target: program,
 		program: p,
+		builder: llvm.NewBuilder(),
 	}
 }
 
@@ -36,49 +38,6 @@ func (d *Driver) Compile() (*Program, error) {
 	}
 
 	return d.program, nil
-}
-
-func (d *Driver) CompileFunction(ast *ast.Function) (Function, error) {
-	var returnType llvm.Type
-
-	// Find input types
-	inputTypes, ok := d.FindTypes(ast.InputTypes)
-
-	if !ok {
-		return nil, errors.New("Missing types")
-	}
-
-	// Find output types
-	outputTypes, ok := d.FindTypes(ast.OutputTypes)
-
-	if !ok {
-		return nil, errors.New("Missing types")
-	}
-
-	// Build native return type
-	if ast.ExecutionModel == ast.InlineExecution {
-		if len(outputTypes) == 1 {
-			returnType = outputTypes[0].Type
-		} else {
-			returnType = llvm.StructType(toLlvmTypes(outputTypes), false)
-		}
-	} else {
-		returnType = llvm.VoidType()
-	}
-
-	// Build function type
-	fnType := llvm.FunctionType(returnType, toLlvmTypes(inputTypes), false)
-
-	// Build function
-	fn := llvm.AddFunction(d.program.Module, ast.Name, fnType)
-
-	return &UserFunction{
-		ast: ast,
-		inputTypes: inputTypes,
-		outputTypes: outputTypes,
-		fnType: fnType,
-		function: fn,
-	}, nil
 }
 
 func (d *Driver) FindTypes(names []string) ([]*Type, bool) {
@@ -115,4 +74,50 @@ func (d *Driver) FindFunction(name string, types []*Type) (Function, bool) {
 	}
 
 	return fn, ok
+}
+
+func (d *Driver) CompileFunction(f *ast.Function) (Function, error) {
+	var returnType llvm.Type
+
+	// Find input types
+	inputTypes, ok := d.FindTypes(f.InputTypes)
+
+	if !ok {
+		return nil, errors.New("Missing types")
+	}
+
+	// Find output types
+	outputTypes, ok := d.FindTypes(f.OutputTypes)
+
+	if !ok {
+		return nil, errors.New("Missing types")
+	}
+
+	// Build native return type
+	if len(outputTypes) == 1 {
+		returnType = outputTypes[0].Type
+	} else {
+		returnType = llvm.StructType(toLlvmTypes(outputTypes), false)
+	}
+
+	// Build blocks
+	blocks := make(BlockMap)
+	builder := llvm.NewBuilder()
+	context := &BuildContext{
+		Driver: driver,
+		Builder: builder,
+	}
+
+	// Build function type
+	fnType := llvm.FunctionType(returnType, toLlvmTypes(inputTypes), false)
+
+	// Build function
+	fn := llvm.AddFunction(d.program.Module, f.Name, fnType);
+
+	return &UserFunction{
+		ast: f,
+		inputTypes: inputTypes,
+		outputTypes: outputTypes,
+		blocks: blocks,
+	}, nil
 }

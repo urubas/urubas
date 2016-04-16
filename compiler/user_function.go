@@ -5,6 +5,15 @@ import (
 	"github.com/urubas/urubas/ast"
 )
 
+type BlockMap map[int]*Block
+
+type Block struct {
+
+	// LLVM
+	fnType llvm.Type
+	function llvm.Value
+}
+
 type UserFunction struct {
 	ast *ast.Function
 
@@ -12,9 +21,8 @@ type UserFunction struct {
 	inputTypes []*Type
 	outputTypes []*Type
 
-	// LLVM
-	fnType llvm.Type
-	function llvm.Value
+	// JIT
+	blocks BlockMap
 }
 
 func (f *UserFunction) Name() string {
@@ -30,5 +38,9 @@ func (f *UserFunction) OutputTypes() []*Type {
 }
 
 func (f *UserFunction) Emit(bc *BuildContext, args []llvm.Value) llvm.Value {
-	return bc.Builder.CreateCall(f.function, args, "")
+	if bc.Node.ExecutionModel == ast.InlineExecution {
+		return bc.Builder.CreateCall(f.blocks[0].function, args, "")
+	} else {
+		return bc.EmitDispatch(f, args)
+	}
 }

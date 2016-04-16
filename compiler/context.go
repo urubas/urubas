@@ -5,15 +5,10 @@ import (
 	"github.com/urubas/urubas/ast"
 )
 
-type Compiler struct {
-	Program *Program
-	Module *llvm.Module
-}
-
 type BuildContext struct {
-	Compiler *Compiler
-
-	Builder *llvm.Builder
+	Driver *Driver
+	Builder llvm.Builder
 	Node *ast.Node
 }
+
 

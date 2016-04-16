@@ -84,6 +84,9 @@ type Node struct {
 	// Node ID
 	ID int
 
+	// Thread
+	ThreadID int
+
 	// Function
 	Function string
 
@@ -103,4 +106,3 @@ type Node struct {
 	// Column where this node is defined
 	Column int
 }
-
