@@ -1,5 +1,9 @@
 package runtime
 
+import (
+	"errors"
+)
+
 type InputMap []*Input
 type OutputMap map[string]*Output
 
@@ -15,24 +19,21 @@ const (
 
 type Node struct {
 	ID int
-	Context *Context
+	Process *Process
 
 	Function Function
 	State NodeState
 
 	Inputs InputMap
-	StateInputs InputMap
-
 	Outputs OutputMap
 }
 
-func NewNode(id int, context *Context, fn Function) *Node {
+func NewNode(id int, fn Function) *Node {
 	return &Node{
 		ID: id,
 		Function: fn,
 		State: NodeIdle,
 		Inputs: make(InputMap, 0),
-		StateInputs: make(InputMap, 0),
 		Outputs: make(OutputMap),
 	}
 }
@@ -44,18 +45,20 @@ func (n *Node) Run() {
 
 	n.State = NodeRunning
 
-	n.Function.Call(n)
+	go func() {
+		n.Function.Call(n)
 
-	// TODO: Probably needs synchronization
-	if n.State == NodeRunning {
-		n.State = NodeFinished
-	}
+		// TODO: Probably needs synchronization
+		if n.State == NodeRunning {
+			n.State = NodeFinished
+		}
+	}()
 }
 
 func (n *Node) EnsureRunning() bool {
 	switch (n.State) {
 		case NodeIdle:
-			go n.Run()
+			n.Run()
 			return true
 		case NodeRunning:
 			return true
@@ -70,25 +73,42 @@ func (n *Node) EnsureRunning() bool {
 	return false
 }
 
-func (n *Node) OpenInput(slot int) (chan<- Value, bool) {
-	input := n.getInput(slot)
+func (n *Node) Connect(name string, target InputHandler, slot int) {
+	var output *Output
 
-	if input.CurrentState == InputAccepted || input.CurrentState == InputRejected {
-		return nil, false
+	output, ok := n.Outputs[name]
+
+	if !ok {
+		output = &Output{
+			Name: name,
+			Edges: make(EdgeMap, 1),
+		}
 	}
 
-	input.ensureState(InputOpen)
-
-	return input.Value, true
+	output.Edges = append(output.Edges, &Edge{
+		Target: target,
+		Slot: slot,
+	})
 }
+
+func (n *Node) SendInput(slot int, value Value) {
+	input := n.Inputs[slot]
+
+	if input.State != InputWaiting {
+		panic(errors.New("Input already resolved"))
+	}
+
+	input.setValue(value)
+}
+
 
 func (n *Node) CloseInput(slot int, accept bool) {
 	var state InputState
 
-	input := n.getInput(slot)
+	input := n.Inputs[slot]
 
-	if input.CurrentState == InputAccepted || input.CurrentState == InputRejected {
-		return
+	if input.State == InputAccepted || input.State == InputRejected {
+		panic(errors.New("Input already resolved"))
 	}
 
 	if accept {
@@ -97,7 +117,7 @@ func (n *Node) CloseInput(slot int, accept bool) {
 		state = InputRejected
 	}
 
-	input.ensureState(state)
+	input.setState(state)
 
 	if accept {
 		n.checkAcception()
@@ -106,27 +126,9 @@ func (n *Node) CloseInput(slot int, accept bool) {
 	}
 }
 
-func (n *Node) getInput(slot int) *Input {
-	var input *Input
-
-	if slot < 0 {
-		input = n.Inputs[slot]
-	} else {
-		input = n.Inputs[slot * -1 - 1]
-	}
-
-	return input
-}
-
 func (n *Node) checkAcception() {
 	for _, i := range n.Inputs {
-		if i.CurrentState != InputAccepted {
-			return
-		}
-	}
-
-	for _, i := range n.StateInputs {
-		if i.CurrentState != InputAccepted {
+		if i.State != InputAccepted {
 			return
 		}
 	}
@@ -134,6 +136,12 @@ func (n *Node) checkAcception() {
 	n.State = NodeAccepted
 }
 
-func (n *Node) bind(c *Context) {
-	n.Context = c
+func (n *Node) bind(p *Process) {
+	n.Process = p
+}
+
+func (n *Node) WaitForArguments() {
+	for _, i := range n.Inputs {
+		i.WaitResolve()
+	}
 }

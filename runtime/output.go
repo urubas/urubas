@@ -1,54 +1,34 @@
 package runtime
 
-import (
-	"reflect"
-)
-
 type EdgeMap []*Edge
 
 type Edge struct {
-	Target *Node
+	Target InputHandler
 	Slot int
 }
 
 type Output struct {
 	Name string
-	Type Type
 	Edges EdgeMap
 }
 
-func (o *Output) Send(any interface{}) {
-	value := reflect.ValueOf(any)
-	ptr := Value(value.Pointer())
-
+func (o *Output) Send(value Value) {
 	for _, edge := range o.Edges {
 		if !edge.Target.EnsureRunning() {
 			continue
 		}
 
-		ch, ok := edge.Target.OpenInput(edge.Slot)
-
-		if !ok {
-			continue
-		}
-
-		ch <- ptr
+		edge.Target.SendInput(edge.Slot, value)
 	}
 }
 
 func (o *Output) Close(accept bool) {
 	for _, edge := range o.Edges {
-		_, ok := edge.Target.OpenInput(edge.Slot)
-
-		if !ok {
-			continue
-		}
-
 		edge.Target.CloseInput(edge.Slot, accept)
 	}
 }
 
-func (o *Output) Finish(any interface{}) {
-	o.Send(any)
+func (o *Output) Finish(value Value) {
+	o.Send(value)
 	o.Close(true)
 }

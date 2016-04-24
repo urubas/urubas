@@ -1,9 +1,12 @@
 package compiler
 
-import (
-	"llvm.org/llvm/bindings/go/llvm"
-)
+type Callable interface {
+	Name() string
+	InputTypes() []*Type
+	OutputType() *Type
+	Call(bc BuildContext, args []Value) Value
+}
 
-type Emitable interface {
-	Emit(bc *BuildContext, args []llvm.Value) llvm.Value
+type CustomFunction interface {
+	InputTypesMatches(types []*Type) bool
 }

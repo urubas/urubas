@@ -8,7 +8,4 @@ func InitializeInfrastructure() {
 	llvm.LinkInMCJIT()
 	llvm.InitializeNativeTarget()
 	llvm.InitializeNativeAsmPrinter()
-
-	initializeTypes()
-	initializeArithmetic()
 }

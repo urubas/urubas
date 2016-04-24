@@ -1,15 +1,19 @@
 package ast
 
-type NodeMap map[int]*Node
-type FunctionMap []*Function
-type OutputMap map[string]*Output
-type TypeMap map[string]*Type
-
 type ExecutionModel int
 const (
 	_ ExecutionModel = iota
 	InlineExecution = iota
 	ParallelExecution = iota
+)
+
+type TypeKind int
+const (
+	_ TypeKind = iota
+	ScalarKind = iota
+	ArrayKind = iota
+	StructKind = iota
+	ChannelKind = iota
 )
 
 type Program struct {
@@ -19,90 +23,19 @@ type Program struct {
 	Functions FunctionMap
 }
 
-type Type struct {
-	Name string
-
-	// Debug information
-	File string
-	Line string
-	Column int
+func NewProgram(name string, main string) *Program {
+	return &Program{
+		Name: name,
+		Main: main,
+		Types: make(TypeMap),
+		Functions: make(FunctionMap, 0),
+	}
 }
 
-// A defined function
-type Function struct {
-	// Function name
-	Name string
-
-	// Main Nodes
-	Main []int
-
-	// Flags
-	Pure bool
-	ExecutionModel ExecutionModel
-
-	// Function nodes
-	Nodes NodeMap
-
-	// IO Definition
-	InputTypes []string
-	OutputTypes []string
-
-	// Debug information
-	File string
-	Line string
-	Column int
+func (p *Program) AddType(t *Type) {
+	p.Types[t.Name] = t
 }
 
-type Literal struct {
-	// Target input slot
-	Slot int
-
-	// Type
-	Type string
-
-	// Runtime value
-	Value interface{}
-}
-
-type Edge struct {
-	// Target node ID
-	Target int
-
-	// Target input slot
-	Slot int
-}
-
-type Output struct {
-	// Output name
-	Name string
-
-	// Connected edges
-	Edges []Edge
-}
-
-type Node struct {
-	// Node ID
-	ID int
-
-	// Thread
-	ThreadID int
-
-	// Function
-	Function string
-
-	// Input Literals
-	Literals []Literal
-
-	// Connected Inputs
-	Outputs OutputMap
-
-	// Debug Information
-	// File where this node is defined
-	File string
-
-	// Line where this node is defined
-	Line string
-
-	// Column where this node is defined
-	Column int
+func (p *Program) AddFunction(f *Function) {
+	p.Functions = append(p.Functions, f)
 }
