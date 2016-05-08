@@ -1,7 +1,7 @@
 package runtime
 
 type ProcessBlueprint struct {
-	InputMap []ThreadVertex
+	InputMap [][]ThreadVertex
 	OutputCount int
 
 	Threads []*ThreadBlueprint

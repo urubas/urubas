@@ -28,9 +28,7 @@ func NewProcess(blueprint *ProcessBlueprint) *Process {
 
 	// Create inputs
 	for index := range p.inputs {
-		v := blueprint.InputMap[index]
-
-		p.inputs[index] = p.GetInputReceiver(v.Target, v.Slot, false)
+		p.inputs[index] = p.GetInputReceivers(blueprint.InputMap[index])
 	}
 
 	// Create outputs
@@ -79,6 +77,26 @@ func (p *Process) GetInputReceiver(thread, slot int, create bool) InputReceiver 
 	}
 
 	return NewLazyInputReceiver(p, thread, slot)
+}
+
+func (p *Process) GetInputReceivers(vertices []ThreadVertex) InputReceiver {
+	var output InputReceiver
+
+	if len(vertices) == 1 {
+		v := vertices[0]
+
+		output = p.GetInputReceiver(v.Target, v.Slot, false)
+	} else {
+		demux := NewInputReceiverDemux()
+
+		for _, v := range vertices {
+			demux.Add(p.GetInputReceiver(v.Target, v.Slot, false))
+		}
+
+		output = demux
+	}
+
+	return output
 }
 
 func (p *Process) BindOutput(slot int, target InputReceiver) {

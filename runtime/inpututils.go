@@ -1,6 +1,6 @@
 package runtime
 
-func WaitAcception(i Input) bool {
+func WaitAcceptance(i Input) bool {
 	for i.State() < InputAccepted {
 		_, ok := <-i.Signal()
 

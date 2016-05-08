@@ -35,25 +35,7 @@ func NewLocalThread(p *Process, blueprint *ThreadBlueprint) *LocalThread {
 
 	// Build output list
 	for index := range th.outputs {
-		var output InputReceiver
-
-		vertices := blueprint.Outputs[index]
-
-		if len(vertices) == 1 {
-			v := vertices[0]
-
-			output = p.GetInputReceiver(v.Target, v.Slot, false)
-		} else {
-			demux := NewInputReceiverDemux()
-
-			for _, v := range vertices {
-				demux.Add(p.GetInputReceiver(v.Target, v.Slot, false))
-			}
-
-			output = demux
-		}
-
-		th.outputs[index] = output
+		th.outputs[index] = p.GetInputReceivers(blueprint.Outputs[index])
 	}
 
 	return th
